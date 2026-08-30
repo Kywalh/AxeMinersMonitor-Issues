@@ -1,0 +1,118 @@
+name: Discord issue notifications
+
+on:
+  issues:
+    types: [opened, reopened, labeled, closed]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+    steps:
+      - name: Send issue update to Discord
+        if: env.DISCORD_WEBHOOK_URL != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const action = context.payload.action;
+            const issue = context.payload.issue;
+            const changedLabel = context.payload.label?.name || '';
+
+            const statusMap = {
+              'status: to-do':        { label: 'To do',        emoji: '📥', color: 9807270 },
+              'status: in-analysis':  { label: 'In analysis',  emoji: '🔎', color: 16498436 },
+              'status: implementing': { label: 'Implementing', emoji: '🛠️', color: 1934543 },
+              'status: in-review':    { label: 'In review',    emoji: '👀', color: 5446119 },
+              'status: in-test':      { label: 'In test',      emoji: '🧪', color: 952089 },
+              'status: postponed':    { label: 'Postponed',    emoji: '⏸️', color: 13684944 }
+            };
+
+            if (action === 'labeled' && !statusMap[changedLabel.toLowerCase()]) {
+              return;
+            }
+
+            let status;
+            let emoji;
+            let color;
+            let detail = '';
+
+            if (action === 'opened') {
+              status = 'To do';
+              emoji = '🆕';
+              color = 9807270;
+              detail = 'New issue';
+            } else if (action === 'reopened') {
+              status = 'To do';
+              emoji = '🔄';
+              color = 9807270;
+              detail = 'Issue reopened';
+            } else if (action === 'labeled') {
+              const mapped = statusMap[changedLabel.toLowerCase()];
+              status = mapped.label;
+              emoji = mapped.emoji;
+              color = mapped.color;
+              detail = 'Status changed';
+            } else if (action === 'closed') {
+              if (issue.state_reason === 'not_planned') {
+                status = "Won't do";
+                emoji = '🚫';
+                color = 15158332;
+                detail = 'Closed as not planned';
+              } else {
+                status = 'Closed';
+                emoji = '✅';
+                color = 5763719;
+                detail = issue.state_reason === 'duplicate'
+                  ? 'Closed as duplicate'
+                  : 'Closed as completed';
+              }
+            } else {
+              return;
+            }
+
+            const names = (issue.labels || [])
+              .map(label => typeof label === 'string' ? label : label.name)
+              .filter(Boolean);
+
+            let type = 'Issue';
+            if (names.includes('bug')) type = 'Bug';
+            else if (names.includes('enhancement')) type = 'Feature request';
+            else if (names.includes('feedback')) type = 'Feedback';
+
+            const payload = {
+              username: 'Axe Miners Monitor',
+              allowed_mentions: { parse: [] },
+              embeds: [
+                {
+                  title: `${emoji} #${issue.number} — ${issue.title}`,
+                  url: issue.html_url,
+                  color,
+                  fields: [
+                    { name: 'Status', value: status, inline: true },
+                    { name: 'Type', value: type, inline: true },
+                    { name: 'Update', value: detail, inline: true },
+                    { name: 'Reported by', value: issue.user?.login || 'Unknown', inline: true }
+                  ],
+                  footer: {
+                    text: 'Axe Miners Monitor · Public Issue Tracker'
+                  },
+                  timestamp: new Date().toISOString()
+                }
+              ]
+            };
+
+            const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              const body = await response.text();
+              core.setFailed(`Discord webhook failed (${response.status}): ${body}`);
+            }
