@@ -1,0 +1,33 @@
+name: Issue status bootstrap
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  bootstrap-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set To do status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.issue.number;
+            const desired = 'status: to-do';
+            const statusPrefix = 'status:';
+
+            const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number });
+            const labels = issue.labels.map(label => typeof label === 'string' ? label : label.name).filter(Boolean);
+            const nonStatusLabels = labels.filter(label => !label.toLowerCase().startsWith(statusPrefix));
+
+            await github.rest.issues.setLabels({
+              owner,
+              repo,
+              issue_number,
+              labels: [...nonStatusLabels, desired]
+            });
