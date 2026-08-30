@@ -1,0 +1,56 @@
+name: "💡 Feature request"
+description: "Suggest a new feature or an improvement for Axe Miners Monitor"
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve **Axe Miners Monitor**.
+
+        Please describe the need first, then the solution you have in mind. This helps distinguish the real problem from one possible implementation.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: "Describe the use case, limitation or frustration behind the request."
+      placeholder: "I would like to ... because ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: "Describe how you think Axe Miners Monitor could solve it."
+      placeholder: "A possible solution would be ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: "Optional: mention other approaches or workarounds you have considered."
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context, mockups or screenshots
+      description: "Add anything that helps explain the idea. Do not include sensitive information."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: "I searched existing issues and did not find the same feature request."
+          required: true
+        - label: "This request does not contain passwords, wallet secrets, credentials, IP addresses or other sensitive information."
+          required: true
