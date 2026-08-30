@@ -1,0 +1,50 @@
+name: "💬 Other feedback"
+description: "Share feedback that does not fit a bug report or feature request"
+title: "[Feedback]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for general feedback about **Axe Miners Monitor** that does not fit the bug report or feature request forms.
+
+        **This issue is public. Do not include passwords, wallet secrets, credentials, IP addresses or other sensitive information.**
+
+  - type: dropdown
+    id: feedback-type
+    attributes:
+      label: Feedback type
+      options:
+        - User experience
+        - Documentation
+        - Compatibility
+        - Mining / AxeOS behavior
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your feedback
+      description: "Tell us what you would like to share."
+      placeholder: "Describe your feedback here."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: "Optional: add screenshots or other useful context."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: "I checked that this is not better suited to the Bug report or Feature request form."
+          required: true
+        - label: "I have removed any sensitive information from this report."
+          required: true
