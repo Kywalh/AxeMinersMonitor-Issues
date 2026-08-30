@@ -42,8 +42,19 @@ Use this to suggest a new feature or an improvement to an existing one.
 ### 💬 Other feedback
 Use this for feedback that does not fit the two categories above.
 
-## Issue status
+## Issue workflow
 
-Issues may be updated with labels or comments as they are reviewed, reproduced, worked on, or resolved. Closing an issue means it has either been fixed, completed, duplicated, rejected, or is no longer actionable; the closing comment will normally provide context when needed.
+Axe Miners Monitor uses a Jira-style workflow:
+
+`To do` → `In analysis` → `Implementing` → `In review` → `In test` → `Closed`
+
+Two additional states are available:
+
+- `Postponed` — valid but deferred.
+- `Won't do` — intentionally not planned.
+
+Open workflow states are represented by a single `status:` label. `Closed` and `Won't do` use GitHub's native closed states.
+
+See [WORKFLOW.md](WORKFLOW.md) for the full status definitions and transition rules.
 
 Thanks for helping improve **Axe Miners Monitor**. ⛏️
