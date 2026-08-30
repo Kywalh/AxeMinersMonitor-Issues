@@ -1,6 +1,11 @@
-name: Issue status bootstrap
+name: Issue workflow bootstrap
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/issue-status.yml'
+  workflow_dispatch:
   issues:
     types: [opened, reopened]
 
@@ -8,7 +13,36 @@ permissions:
   issues: write
 
 jobs:
-  bootstrap-status:
+  ensure-status-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure workflow labels exist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const labels = [
+              { name: 'status: to-do',        color: 'd4c5f9', description: 'Accepted and waiting for analysis or scheduling' },
+              { name: 'status: in-analysis',  color: 'fbca04', description: 'Being investigated, reproduced, specified, or assessed' },
+              { name: 'status: implementing', color: '1d76db', description: 'Development work is actively in progress' },
+              { name: 'status: in-review',    color: '5319e7', description: 'Implementation complete and under review' },
+              { name: 'status: in-test',      color: '0e8a16', description: 'Available for validation or regression testing' },
+              { name: 'status: postponed',    color: 'cfd3d7', description: 'Valid issue intentionally deferred to a later time' }
+            ];
+
+            const { data: existing } = await github.rest.issues.listLabelsForRepo({ owner, repo, per_page: 100 });
+            const existingNames = new Set(existing.map(label => label.name.toLowerCase()));
+
+            for (const label of labels) {
+              if (!existingNames.has(label.name.toLowerCase())) {
+                await github.rest.issues.createLabel({ owner, repo, ...label });
+              }
+            }
+
+  set-to-do-on-open:
+    if: github.event_name == 'issues'
+    needs: ensure-status-labels
     runs-on: ubuntu-latest
     steps:
       - name: Set To do status
@@ -19,11 +53,12 @@ jobs:
             const repo = context.repo.repo;
             const issue_number = context.issue.number;
             const desired = 'status: to-do';
-            const statusPrefix = 'status:';
 
             const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number });
-            const labels = issue.labels.map(label => typeof label === 'string' ? label : label.name).filter(Boolean);
-            const nonStatusLabels = labels.filter(label => !label.toLowerCase().startsWith(statusPrefix));
+            const labels = issue.labels
+              .map(label => typeof label === 'string' ? label : label.name)
+              .filter(Boolean);
+            const nonStatusLabels = labels.filter(label => !label.toLowerCase().startsWith('status:'));
 
             await github.rest.issues.setLabels({
               owner,
