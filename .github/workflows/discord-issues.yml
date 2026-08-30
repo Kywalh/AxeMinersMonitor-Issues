@@ -1,6 +1,7 @@
 name: Discord issue notifications
 
 on:
+  workflow_dispatch:
   issues:
     types: [opened, reopened, labeled, closed]
 
@@ -14,11 +15,50 @@ jobs:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
     steps:
+      - name: Check Discord webhook secret
+        shell: bash
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::error::Repository secret DISCORD_WEBHOOK_URL is missing or unavailable. Create it under Settings > Secrets and variables > Actions > Repository secrets."
+            exit 1
+          fi
+
       - name: Send issue update to Discord
-        if: env.DISCORD_WEBHOOK_URL != ''
         uses: actions/github-script@v7
         with:
           script: |
+            const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+
+            if (context.eventName === 'workflow_dispatch') {
+              const payload = {
+                username: 'Axe Miners Monitor',
+                allowed_mentions: { parse: [] },
+                embeds: [
+                  {
+                    title: '✅ Discord integration test',
+                    description: 'GitHub Actions can successfully reach this Discord channel.',
+                    color: 5763719,
+                    footer: {
+                      text: 'Axe Miners Monitor · Public Issue Tracker'
+                    },
+                    timestamp: new Date().toISOString()
+                  }
+                ]
+              };
+
+              const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              if (!response.ok) {
+                const body = await response.text();
+                core.setFailed(`Discord webhook failed (${response.status}): ${body}`);
+              }
+              return;
+            }
+
             const action = context.payload.action;
             const issue = context.payload.issue;
             const changedLabel = context.payload.label?.name || '';
@@ -106,7 +146,7 @@ jobs:
               ]
             };
 
-            const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
+            const response = await fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
