@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
 
 jobs:
   notify-discord:
@@ -62,6 +63,7 @@ jobs:
             const action = context.payload.action;
             const issue = context.payload.issue;
             const changedLabel = context.payload.label?.name || '';
+            const statusPrefix = 'status:';
 
             const statusMap = {
               'status: to-do':        { label: 'To do',        emoji: '📥', color: 9807270 },
@@ -76,74 +78,187 @@ jobs:
               return;
             }
 
+            const labelNames = (issue.labels || [])
+              .map(label => typeof label === 'string' ? label : label.name)
+              .filter(Boolean);
+
+            const prettyStatus = (name) => {
+              if (!name) return null;
+              const mapped = statusMap[name.toLowerCase()];
+              if (mapped) return mapped.label;
+              return name.replace(/^status:\s*/i, '').replace(/-/g, ' ');
+            };
+
+            const findPreviousStatusFromHistory = async (currentStatusLabel) => {
+              try {
+                const events = await github.paginate(
+                  github.rest.issues.listEventsForTimeline,
+                  {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    per_page: 100
+                  }
+                );
+
+                const statusEvents = events
+                  .filter(event => event.event === 'labeled')
+                  .map(event => event.label?.name || '')
+                  .filter(name => name.toLowerCase().startsWith(statusPrefix));
+
+                for (let i = statusEvents.length - 1; i >= 0; i--) {
+                  if (statusEvents[i].toLowerCase() !== currentStatusLabel.toLowerCase()) {
+                    return statusEvents[i];
+                  }
+                }
+              } catch (error) {
+                core.warning(`Could not determine previous status from issue history: ${error.message}`);
+              }
+              return null;
+            };
+
+            const extractSection = (heading) => {
+              const body = issue.body || '';
+              const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = new RegExp(`###\\s+${escaped}\\s*\\n+([\\s\\S]*?)(?=\\n###\\s+|$)`, 'i');
+              const match = body.match(regex);
+              if (!match) return null;
+
+              const value = match[1]
+                .trim()
+                .replace(/^_No response_$/i, '')
+                .replace(/^No response$/i, '')
+                .trim();
+
+              return value || null;
+            };
+
+            const truncate = (text, max = 300) => {
+              if (!text) return null;
+              const cleaned = text.replace(/\s+/g, ' ').trim();
+              return cleaned.length > max
+                ? `${cleaned.slice(0, max - 1).trimEnd()}…`
+                : cleaned;
+            };
+
+            let type = 'Issue';
+            if (labelNames.includes('bug')) type = 'Bug';
+            else if (labelNames.includes('enhancement')) type = 'Feature request';
+            else if (labelNames.includes('feedback')) type = 'Feedback';
+            else if ((issue.title || '').startsWith('[Feedback]:')) type = 'Feedback';
+
+            const appVersion = extractSection('Axe Miners Monitor version');
+            const androidVersion = extractSection('Android version');
+            const minerModel = extractSection('Miner model');
+
+            let shortDescription = null;
+            if (type === 'Bug') {
+              shortDescription = extractSection('What happened?');
+            } else if (type === 'Feature request') {
+              shortDescription = extractSection('What problem would this solve?');
+            } else if (type === 'Feedback') {
+              shortDescription = extractSection('Your feedback');
+            }
+            shortDescription = truncate(shortDescription, 300);
+
             let status;
+            let previousStatus;
             let emoji;
             let color;
-            let detail = '';
 
             if (action === 'opened') {
               status = 'To do';
+              previousStatus = 'New';
               emoji = '🆕';
               color = 9807270;
-              detail = 'New issue';
             } else if (action === 'reopened') {
               status = 'To do';
+              previousStatus = 'Closed';
               emoji = '🔄';
               color = 9807270;
-              detail = 'Issue reopened';
             } else if (action === 'labeled') {
               const mapped = statusMap[changedLabel.toLowerCase()];
               status = mapped.label;
               emoji = mapped.emoji;
               color = mapped.color;
-              detail = 'Status changed';
+
+              let previousStatusLabel = labelNames.find(
+                name => name.toLowerCase().startsWith(statusPrefix) &&
+                        name.toLowerCase() !== changedLabel.toLowerCase()
+              );
+
+              if (!previousStatusLabel) {
+                previousStatusLabel = await findPreviousStatusFromHistory(changedLabel);
+              }
+
+              previousStatus = prettyStatus(previousStatusLabel) || 'Previous';
             } else if (action === 'closed') {
+              const currentStatusLabel = labelNames.find(
+                name => name.toLowerCase().startsWith(statusPrefix)
+              );
+              previousStatus = prettyStatus(currentStatusLabel) || 'Open';
+
               if (issue.state_reason === 'not_planned') {
                 status = "Won't do";
                 emoji = '🚫';
                 color = 15158332;
-                detail = 'Closed as not planned';
               } else {
-                status = 'Closed';
+                status = issue.state_reason === 'duplicate' ? 'Duplicate' : 'Closed';
                 emoji = '✅';
                 color = 5763719;
-                detail = issue.state_reason === 'duplicate'
-                  ? 'Closed as duplicate'
-                  : 'Closed as completed';
               }
             } else {
               return;
             }
 
-            const names = (issue.labels || [])
-              .map(label => typeof label === 'string' ? label : label.name)
-              .filter(Boolean);
+            const fields = [
+              {
+                name: 'Status',
+                value: `${previousStatus} → ${status}`,
+                inline: false
+              },
+              {
+                name: 'Type',
+                value: type,
+                inline: true
+              }
+            ];
 
-            let type = 'Issue';
-            if (names.includes('bug')) type = 'Bug';
-            else if (names.includes('enhancement')) type = 'Feature request';
-            else if (names.includes('feedback')) type = 'Feedback';
+            if (appVersion) {
+              fields.push({ name: 'App version', value: truncate(appVersion, 100), inline: true });
+            }
+            if (androidVersion) {
+              fields.push({ name: 'Android', value: truncate(androidVersion, 100), inline: true });
+            }
+            if (minerModel) {
+              fields.push({ name: 'Miner model', value: truncate(minerModel, 100), inline: true });
+            }
+
+            fields.push({
+              name: 'Reported by',
+              value: issue.user?.login || 'Unknown',
+              inline: true
+            });
+
+            const embed = {
+              title: `${emoji} #${issue.number} — ${issue.title}`,
+              url: issue.html_url,
+              color,
+              fields,
+              footer: {
+                text: 'Axe Miners Monitor · Public Issue Tracker'
+              },
+              timestamp: new Date().toISOString()
+            };
+
+            if (shortDescription) {
+              embed.description = shortDescription;
+            }
 
             const payload = {
               username: 'Axe Miners Monitor',
               allowed_mentions: { parse: [] },
-              embeds: [
-                {
-                  title: `${emoji} #${issue.number} — ${issue.title}`,
-                  url: issue.html_url,
-                  color,
-                  fields: [
-                    { name: 'Status', value: status, inline: true },
-                    { name: 'Type', value: type, inline: true },
-                    { name: 'Update', value: detail, inline: true },
-                    { name: 'Reported by', value: issue.user?.login || 'Unknown', inline: true }
-                  ],
-                  footer: {
-                    text: 'Axe Miners Monitor · Public Issue Tracker'
-                  },
-                  timestamp: new Date().toISOString()
-                }
-              ]
+              embeds: [embed]
             };
 
             const response = await fetch(webhookUrl, {
