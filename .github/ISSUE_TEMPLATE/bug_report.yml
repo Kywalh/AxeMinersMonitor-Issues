@@ -1,5 +1,5 @@
 name: "🐛 Bug report"
-description: "Report something in Axe Miners Monitor that is not working correctly"
+description: "Report something in Axy that is not working correctly"
 title: "[Bug]: "
 labels:
   - bug
@@ -16,7 +16,7 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: Axe Miners Monitor version
+      label: Axy version
       description: "You can find the app version in the app's About screen or Android app information."
       placeholder: "e.g. 1.1.2"
     validations:
@@ -42,15 +42,15 @@ body:
     id: miner-model
     attributes:
       label: Miner model
-      description: "If the issue is miner-specific, tell us which AxeOS device is affected."
+      description: "If the issue is miner-specific, tell us which miner and firmware are affected."
       placeholder: "e.g. Bitaxe Gamma 601, Bitaxe 801"
     validations:
       required: false
 
   - type: input
-    id: axeos-version
+    id: firmware-version
     attributes:
-      label: AxeOS version
+      label: Miner firmware / OS version
       placeholder: "e.g. v2.x.x"
     validations:
       required: false
