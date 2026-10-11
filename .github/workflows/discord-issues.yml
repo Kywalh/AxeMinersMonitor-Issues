@@ -32,7 +32,7 @@ jobs:
 
             if (context.eventName === 'workflow_dispatch') {
               const payload = {
-                username: 'Axe Miners Monitor',
+                username: 'Axy',
                 allowed_mentions: { parse: [] },
                 embeds: [
                   {
@@ -40,7 +40,7 @@ jobs:
                     description: 'GitHub Actions can successfully reach this Discord channel.',
                     color: 5763719,
                     footer: {
-                      text: 'Axe Miners Monitor · Public Issue Tracker'
+                      text: 'Axy · Public Issue Tracker'
                     },
                     timestamp: new Date().toISOString()
                   }
@@ -147,7 +147,7 @@ jobs:
             else if (labelNames.includes('feedback')) type = 'Feedback';
             else if ((issue.title || '').startsWith('[Feedback]:')) type = 'Feedback';
 
-            const appVersion = extractSection('Axe Miners Monitor version');
+            const appVersion = extractSection('Axy version') || extractSection('Axe Miners Monitor version');
             const androidVersion = extractSection('Android version');
             const minerModel = extractSection('Miner model');
 
@@ -246,7 +246,7 @@ jobs:
               color,
               fields,
               footer: {
-                text: 'Axe Miners Monitor · Public Issue Tracker'
+                text: 'Axy · Public Issue Tracker'
               },
               timestamp: new Date().toISOString()
             };
@@ -256,7 +256,7 @@ jobs:
             }
 
             const payload = {
-              username: 'Axe Miners Monitor',
+              username: 'Axy',
               allowed_mentions: { parse: [] },
               embeds: [embed]
             };

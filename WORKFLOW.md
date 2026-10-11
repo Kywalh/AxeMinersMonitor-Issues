@@ -1,6 +1,6 @@
 # Issue workflow
 
-Axe Miners Monitor uses a simple Jira-style workflow for public issues.
+Axy uses a simple Jira-style workflow for public issues.
 
 ## Main workflow
 
