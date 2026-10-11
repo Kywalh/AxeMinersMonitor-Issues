@@ -1,4 +1,4 @@
-# Axe Miners Monitor — Public Issue Tracker
+# Axy Issues — Public Issue Tracker
 
 Welcome to the public issue tracker for **Axe Miners Monitor**.
 
